@@ -1,33 +1,17 @@
-from .models import Post
+from .models import Post, User
 from django.forms import ModelForm, TextInput, Textarea, DateInput, Select
+from django import forms
 
 
-class PostForm(ModelForm):
+class UserForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'email')
+
+
+class PostForm(forms.ModelForm):
     class Meta:
         model = Post
-        fields = ["title", "text", "pub_date", "author"]
-        widgets = {
-            "title": TextInput(
-                attrs={
-                    'class': 'form-control',
-                    'placeholder': 'Введите название',
-                }
-            ),
-            "text": Textarea(
-                attrs={
-                    'class': 'form-control',
-                    'placeholder': 'Введите описание',
-                }
-            ),
-            "pub_date": DateInput(
-                attrs={
-                    'class': 'form-control',
-                    'type': 'date'
-                }
-            ),
-            "author": Select(
-                attrs={
-                    'class': 'form-control',
-                }
-            ),
-        }
+        # fields = "__all__"
+        exclude = ('author',)
+        widgets = {'pub_date': forms.DateInput(attrs={'type': 'date'})}
