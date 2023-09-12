@@ -13,5 +13,7 @@ urlpatterns = [
     ),
     path('create/', views.PostCreateView.as_view(), name='create_post'),
     path('profile/<slug:user_name>/', views.profile, name='profile'),
-    path('edit_profile/', views.UserUpdateView.as_view(), name='edit_profile')
+    path('edit_profile/', views.UserUpdateView.as_view(), name='edit_profile'),
+    path('posts/<int:pk>/edit/', views.PostUpdateView.as_view(), name='edit_post'),
+    path('posts/<int:pk>/delete/', views.PostDeleteView.as_view(), name='delete_post')
 ]

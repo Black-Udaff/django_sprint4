@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 
 
 User = get_user_model()
@@ -55,6 +56,9 @@ class Post(BaseModel):
     class Meta:
         verbose_name = "публикация"
         verbose_name_plural = "Публикации"
+
+    # def get_absolute_url(self):
+    #     return reverse('birthday:detail', kwargs={'pk': self.pk})
 
 
 class Category(BaseModel):

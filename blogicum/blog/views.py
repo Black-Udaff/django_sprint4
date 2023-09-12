@@ -10,7 +10,7 @@ from django.views.generic import (
     DetailView,
 )
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth import get_user_model
+
 from django.core.paginator import Paginator
 from .forms import UserForm
 from django.urls import reverse_lazy
@@ -61,27 +61,30 @@ def category_posts(request, category_slug):
 
 
 
-def create_post(request):
-    template = "blog/create.html"
-    if request.method == 'POST':
-        form = PostForm(request.POST)
-        if form.is_valid():
-            form.save()
-    form = PostForm()
-    context = {'form': form}
-    return render(request, template, context)
+# def create_post(request):
+#     template = "blog/create.html"
+#     if request.method == 'POST':
+#         form = PostForm(request.POST)
+#         if form.is_valid():
+#             form.save()
+#     form = PostForm()
+#     context = {'form': form}
+#     return render(request, template, context)
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
     form_class = PostForm
     template_name = "blog/create.html"
-    success_url = reverse_lazy('blog:profile')
+    
     def form_valid(self, form):
         # Присвоить полю author объект пользователя из запроса.
         form.instance.author = self.request.user
         # Продолжить валидацию, описанную в форме.
         return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse_lazy('blog:profile', args=[self.request.user.username])
 
 def profile(request, user_name):
     # Получить объект пользователя
@@ -122,8 +125,13 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
     form_class = UserForm
     template_name = 'blog/user.html'
     login_url = 'login'
+    # success_url = reverse_lazy('blog:profile',) # ne redirektit!!!!
+
     def get_object(self, queryset=None):
         return self.request.user
+    def get_success_url(self):
+        return reverse_lazy('blog:profile', args=[self.request.user.username])
+    
 
 
 # class ProfileView(ListView):
@@ -143,3 +151,14 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
         
 #         context["profile"] = user
 #         return context
+class PostDeleteView(LoginRequiredMixin, DeleteView):
+    pass
+
+
+
+class PostUpdateView(LoginRequiredMixin, DeleteView):
+    model = Post
+    form_class = PostForm
+    template_name = "blog/create.html"
+    def get_object(self, queryset=None):
+        return self.request.post 
