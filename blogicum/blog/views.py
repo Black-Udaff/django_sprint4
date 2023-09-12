@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
-from blog.models import Post, Category, User
+from blog.models import Post, Category, User, Comment
 from django.utils import timezone
-from .forms import PostForm
+from .forms import PostForm, CommentForm
 from django.views.generic import (
     ListView,
     CreateView,
@@ -32,18 +32,28 @@ class PostListView(ListView):
     )
 
 
-def post_detail(request, pk):
-    template = "blog/detail.html"
-    post = get_object_or_404(
-        Post.objects.select_related().filter(
-            pk=pk,
+class PostDetailView(DetailView):
+    model = Post
+    template_name = "blog/detail.html"
+    
+    def get_queryset(self):
+        return Post.objects.select_related().filter(
             pub_date__lte=timezone.now(),
             is_published=True,
             category__is_published=True,
         )
-    )
-    context = {"post": post}
-    return render(request, template, context)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Записываем в переменную form пустой объект формы.
+        context['form'] = CommentForm()
+        # Запрашиваем все поздравления для выбранного дня рождения.
+        context['congratulations'] = (
+            # Дополнительно подгружаем авторов комментариев,
+            # чтобы избежать множества запросов к БД.
+            self.object.comments.select_related('author')
+        )
+        return context 
 
 
 def category_posts(request, category_slug):
@@ -156,9 +166,30 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
 
 
 
-class PostUpdateView(LoginRequiredMixin, DeleteView):
+class PostUpdateView(LoginRequiredMixin, UpdateView):
     model = Post
     form_class = PostForm
     template_name = "blog/create.html"
     def get_object(self, queryset=None):
-        return self.request.post 
+        return self.request.post
+    
+
+class CommentCreateView(LoginRequiredMixin, CreateView):
+    post = None
+    model = Post
+    form_class = PostForm
+
+    # Переопределяем dispatch()
+    def dispatch(self, request, *args, **kwargs):
+        self.post = get_object_or_404(Post, pk=kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    # Переопределяем form_valid()
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        form.instance.post = self.post
+        return super().form_valid(form)
+
+    # Переопределяем get_success_url()
+    def get_success_url(self):
+        return reverse_lazy('post:detail', kwargs={'pk': self.post.pk}) 
