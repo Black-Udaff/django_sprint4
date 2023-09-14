@@ -31,6 +31,7 @@ class Post(BaseModel):
             " публикации."
         ),
     )
+    image = models.ImageField('Фото', upload_to='post_images', blank=True)
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
