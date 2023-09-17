@@ -1,7 +1,5 @@
 from django.shortcuts import render
-
-
-from django.shortcuts import render
+from django.views.generic import TemplateView
 
 
 def page_not_found(request, exception):
@@ -16,11 +14,9 @@ def server_error(request, reason=''):
     return render(request, 'pages/500.html', status=500)
 
 
-def about(request):
-    template = 'pages/about.html'
-    return render(request, template)
+class About(TemplateView):
+    template_name = 'pages/about.html'
 
 
-def rules(request):
-    template = 'pages/rules.html'
-    return render(request, template)
+class Rules(TemplateView):
+    template_name = 'pages/rules.html'

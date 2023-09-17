@@ -13,7 +13,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
 from django.core.paginator import Paginator
 from .forms import UserForm
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy ,reverse
+from django.db.models import Count
 
 NUMBER_OF_POSTS = 5
 
@@ -23,12 +24,14 @@ class PostListView(ListView):
     template_name = 'blog/index.html'
     ordering = '-pub_date'
     paginate_by = 10
-    queryset = Post.objects.select_related(
-        "author", "location", "category"
-    ).filter(
-        pub_date__lte=timezone.now(),
-        is_published=True,
-        category__is_published=True,
+    queryset = (
+        Post.objects.select_related("author", "location", "category")
+        .filter(
+            pub_date__lte=timezone.now(),
+            is_published=True,
+            category__is_published=True,
+        )
+        .annotate(comment_count=Count('comments'))
     )
 
 
@@ -73,18 +76,24 @@ class CategoryPostsView(ListView):
     template_name = "blog/category.html"
     context_object_name = "post_list"
     paginate_by = 10  # например, 10 постов на страницу
-    
+
     def get_queryset(self):
         # Получаем категорию по slug
-        self.category = get_object_or_404(Category, slug=self.kwargs['category_slug'], is_published=True)
-        
+        self.category = get_object_or_404(
+            Category, slug=self.kwargs['category_slug'], is_published=True
+        )
+
         # Фильтруем посты по категории
-        return Post.objects.filter(pub_date__lte=timezone.now(), is_published=True, category=self.category)
+        return Post.objects.filter(
+            pub_date__lte=timezone.now(),
+            is_published=True,
+            category=self.category,
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["category"] = self.category
-        
+
         return context
 
 
@@ -98,12 +107,14 @@ class PostCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse_lazy('blog:profile', args=[self.request.user.username])
+        return reverse('blog:profile', args=[self.request.user.username])
 
 
 def profile(request, user_name):
     user = get_object_or_404(User, username=user_name)
-    posts = Post.objects.filter(author=user, is_published=True)
+    posts = Post.objects.filter(author=user).annotate(
+        comment_count=Count('comments')
+    )
     paginator = Paginator(posts, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -191,6 +202,25 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
 
 class CommentDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Comment
+    template_name = 'blog/comment.html'
+    context_object_name = 'comment'
+
+    def get_object(self, queryset=None):
+        comment_id = self.kwargs.get('comment_id')
+        return get_object_or_404(Comment, id=comment_id)
+
+    def get_success_url(self):
+        post_id = self.kwargs.get('post_id')
+        return reverse_lazy('blog:post_detail', kwargs={'pk': post_id})
+
+    def test_func(self):
+        comment = self.get_object()
+        return comment.author == self.request.user
+
+
+class CommentUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Comment
+    form_class = CommentForm
     template_name = 'blog/comment.html'
     context_object_name = 'comment'
 
