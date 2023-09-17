@@ -15,14 +15,14 @@ from django.urls import reverse_lazy, reverse
 from django.db.models import Count
 
 
-NUMBER_OF_POSTS = 5
+NUMBER_OF_POSTS = 10
 
 
 class PostListView(ListView):
     model = Post
     template_name = 'blog/index.html'
     ordering = '-pub_date'
-    paginate_by = 10
+    paginate_by = NUMBER_OF_POSTS
     queryset = (
         Post.objects.select_related("author", "location", "category")
         .filter(
@@ -65,7 +65,7 @@ class CategoryPostsView(ListView):
     model = Post
     template_name = "blog/category.html"
     context_object_name = "post_list"
-    paginate_by = 10
+    paginate_by = NUMBER_OF_POSTS
 
     def get_queryset(self):
         self.category = get_object_or_404(
@@ -104,7 +104,7 @@ def profile(request, user_name):
         .annotate(comment_count=Count('comments'))
         .order_by('-pub_date')
     )
-    paginator = Paginator(posts, 10)
+    paginator = Paginator(posts, NUMBER_OF_POSTS)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
