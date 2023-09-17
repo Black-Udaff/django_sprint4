@@ -39,7 +39,6 @@ class PostDetailView(DetailView):
     template_name = 'blog/detail.html'
 
     def get_object(self, queryset=None):
-        # Если пользователь авторизован и является автором поста
         if self.request.user.is_authenticated:
             post = get_object_or_404(self.model, pk=self.kwargs['pk'])
             if post.author == self.request.user:
