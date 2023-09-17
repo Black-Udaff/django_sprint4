@@ -1,5 +1,4 @@
 from .models import Post, User, Comment
-from django.forms import ModelForm, TextInput, Textarea, DateInput, Select
 from django import forms
 
 
@@ -15,13 +14,13 @@ class PostForm(forms.ModelForm):
         # fields = "__all__"
         exclude = ('author', 'created_at')
         widgets = {
-            'pub_date': forms.DateTimeInput(format='%Y-%m-%dT%H:%M',
-                                            attrs={'type': 'datetime-local'})
+            'pub_date': forms.DateTimeInput(
+                format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local'}
+            )
         }
 
 
 class CommentForm(forms.ModelForm):
-    
     class Meta:
         model = Comment
-        fields = ('text',) 
+        fields = ('text',)

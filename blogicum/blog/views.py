@@ -1,7 +1,7 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from blog.models import Post, Category, User, Comment
 from django.utils import timezone
-from .forms import PostForm, CommentForm
+from .forms import PostForm, CommentForm, UserForm
 from django.views.generic import (
     ListView,
     CreateView,
@@ -10,11 +10,10 @@ from django.views.generic import (
     DetailView,
 )
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-
 from django.core.paginator import Paginator
-from .forms import UserForm
-from django.urls import reverse_lazy ,reverse
+from django.urls import reverse_lazy, reverse
 from django.db.models import Count
+
 
 NUMBER_OF_POSTS = 5
 
@@ -37,58 +36,47 @@ class PostListView(ListView):
 
 class PostDetailView(DetailView):
     model = Post
-    template_name = "blog/detail.html"
+    template_name = 'blog/detail.html'
 
-    def get_queryset(self):
-        return Post.objects.select_related().filter(
-            pub_date__lte=timezone.now(),
-            is_published=True,
-            category__is_published=True,
+    def get_object(self, queryset=None):
+        # Если пользователь авторизован и является автором поста
+        if self.request.user.is_authenticated:
+            post = get_object_or_404(self.model, pk=self.kwargs['pk'])
+            if post.author == self.request.user:
+                return post
+        return get_object_or_404(
+            self.model.objects.select_related(
+                'location', 'author', 'category'
+            ).filter(
+                pub_date__lte=timezone.now(),
+                is_published=True,
+                category__is_published=True,
+            ),
+            pk=self.kwargs['pk'],
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Записываем в переменную form пустой объект формы.
         context['form'] = CommentForm()
-        # Запрашиваем все поздравления для выбранного дня рождения.
-        context['comments'] = (
-            # Дополнительно подгружаем авторов комментариев,
-            # чтобы избежать множества запросов к БД.
-            self.object.comments.select_related('author')
-        )
+        context['comments'] = self.object.comments.select_related('author')
         return context
-
-
-# def category_posts(request, category_slug):
-#     template = "blog/category.html"
-#     category = get_object_or_404(
-#         Category, slug=category_slug, is_published=True
-#     )
-#     post_list = Post.objects.filter(
-#         pub_date__lte=timezone.now(), is_published=True, category=category
-#     )
-#     context = {"category": category, "post_list": post_list}
-#     return render(request, template, context)
 
 
 class CategoryPostsView(ListView):
     model = Post
     template_name = "blog/category.html"
     context_object_name = "post_list"
-    paginate_by = 10  # например, 10 постов на страницу
+    paginate_by = 10
 
     def get_queryset(self):
-        # Получаем категорию по slug
         self.category = get_object_or_404(
             Category, slug=self.kwargs['category_slug'], is_published=True
         )
-
-        # Фильтруем посты по категории
         return Post.objects.filter(
             pub_date__lte=timezone.now(),
             is_published=True,
             category=self.category,
-        )
+        ).order_by('-pub_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -112,8 +100,10 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 
 def profile(request, user_name):
     user = get_object_or_404(User, username=user_name)
-    posts = Post.objects.filter(author=user).annotate(
-        comment_count=Count('comments')
+    posts = (
+        Post.objects.filter(author=user)
+        .annotate(comment_count=Count('comments'))
+        .order_by('-pub_date')
     )
     paginator = Paginator(posts, 10)
     page_number = request.GET.get('page')
@@ -123,7 +113,6 @@ def profile(request, user_name):
         'profile': user,
         'page_obj': page_obj,
     }
-
     return render(request, 'blog/profile.html', context)
 
 
@@ -134,7 +123,6 @@ def edit_profile(request):
         form = UserForm(request.POST, instance=request.user)
         if form.is_valid():
             form.save()
-
     form = UserForm(instance=request.user)
     return render(request, template, {'form': form})
 
@@ -144,7 +132,6 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
     form_class = UserForm
     template_name = 'blog/user.html'
     login_url = 'login'
-    # success_url = reverse_lazy('blog:profile',) # ne redirektit!!!!
 
     def get_object(self, queryset=None):
         return self.request.user
@@ -158,11 +145,12 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
     template_name = "blog/create.html"
     success_url = reverse_lazy('blog:index')
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['delete'] = True
-        context['form'] = PostForm(instance=self.get_object())
-        return context
+    def dispatch(self, request, *args, **kwargs):
+        '''Отправляет изменения/удаления поста'''
+        self.post_id = kwargs['pk']
+        if self.get_object().author != request.user:
+            return redirect('blog:post_detail', pk=self.post_id)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class PostUpdateView(LoginRequiredMixin, UpdateView):
@@ -171,7 +159,9 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "blog/create.html"
 
     def dispatch(self, request, *args, **kwargs):
-        get_object_or_404(Post, pk=kwargs['pk'], author=request.user)
+        self.post_id = kwargs['pk']
+        if self.get_object().author != request.user:
+            return redirect('blog:post_detail', pk=self.post_id)
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
