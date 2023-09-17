@@ -56,6 +56,7 @@ class Post(BaseModel):
     class Meta:
         verbose_name = "публикация"
         verbose_name_plural = "Публикации"
+        ordering = ('created_at',)
 
 
 class Category(BaseModel):
@@ -98,3 +99,5 @@ class Comment(models.Model):
 
     class Meta:
         ordering = ('created_at',)
+        verbose_name = "комментарий"
+        verbose_name_plural = "Комментарии"
