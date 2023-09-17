@@ -116,17 +116,6 @@ def profile(request, user_name):
     return render(request, 'blog/profile.html', context)
 
 
-def edit_profile(request):
-    template = 'blog/user.html'
-    # user = User.objects.get(username=request.user)
-    if request.method == 'POST':
-        form = UserForm(request.POST, instance=request.user)
-        if form.is_valid():
-            form.save()
-    form = UserForm(instance=request.user)
-    return render(request, template, {'form': form})
-
-
 class UserUpdateView(LoginRequiredMixin, UpdateView):
     model = User
     form_class = UserForm
@@ -146,7 +135,6 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('blog:index')
 
     def dispatch(self, request, *args, **kwargs):
-        '''Отправляет изменения/удаления поста'''
         self.post_id = kwargs['pk']
         if self.get_object().author != request.user:
             return redirect('blog:post_detail', pk=self.post_id)

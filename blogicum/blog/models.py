@@ -57,9 +57,6 @@ class Post(BaseModel):
         verbose_name = "публикация"
         verbose_name_plural = "Публикации"
 
-    # def get_absolute_url(self):
-    #     return reverse('birthday:detail', kwargs={'pk': self.pk})
-
 
 class Category(BaseModel):
     title = models.CharField("Заголовок", max_length=256)
